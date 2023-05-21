@@ -1,4 +1,4 @@
-package main
+package sender
 
 import (
 	"log"
@@ -17,17 +17,17 @@ type Socket struct {
 	mu   sync.Mutex
 }
 
-func main() {
+func Sender() {
 	u := url.URL{
 		Scheme: "ws",
 		Host:   "localhost:3000",
 		Path:   "/",
 	}
+
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatalf("Failed to connect to WebSocket server: %s", err)
+		log.Fatalf("sender failed: %s", err)
 	}
-
 	defer c.Close()
 
 	socket := &Socket{
