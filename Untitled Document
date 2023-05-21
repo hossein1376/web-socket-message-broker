@@ -1,0 +1,90 @@
+// Receiver module
+func main() {
+    // Create a WebSocket server
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        c, err := upgrader.Upgrade(w, r, nil)
+        if err != nil {
+            log.Fatalf("Failed to upgrade WebSocket connection: %s", err)
+        }
+        defer c.Close()
+
+        // Receive messages over the WebSocket connection
+        for {
+            _, message, err := c.ReadMessage()
+            if err != nil {
+                log.Fatalf("Failed to receive message: %s", err)
+            }
+            var msg struct {
+                Recipient string `json:"recipient"`
+                Message   string `json:"message"`
+            }
+            if err := json.Unmarshal(message, &msg); err != nil {
+                log.Fatalf("Failed to parse message: %s", err)
+            }
+            switch msg.Recipient {
+            case "logger":
+                log.Printf("Received message: %s", msg.Message)
+                // Log the message to a file
+                if err := logToFile(msg.Message); err != nil {
+                    log.Fatalf("Failed to log message: %s", err)
+                }
+            case "other":
+                // Handle messages for other recipients
+                // ...
+            default:
+                log.Printf("Unknown recipient: %s", msg.Recipient)
+            }
+        }
+    })
+    log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+
+// Logger module
+func main() {
+    // Establish a WebSocket connection to the receiver module
+    c, _, err:= websocket.DefaultDialer.Dial("ws://localhost:8080/", nil)
+    if err != nil {
+        log.Fatalf("Failed to connect to WebSocket server: %s", err)
+    }
+    defer c.Close()
+
+    // Send messages over the WebSocket connection
+    message := struct {
+        Recipient string `json:"recipient"`
+        Message   string `json:"message"`
+    }{
+        Recipient: "logger",
+        Message:   "Hello, world!",
+    }
+    data, err := json.Marshal(message)
+    if err != nil {
+        log.Fatalf("Failed to encode message: %s", err)
+    }
+    err = c.WriteMessage(websocket.TextMessage, data)
+    if err != nil {
+        log.Fatalf("Failed to send message: %s", err)
+    }
+
+    // Receive messages over the WebSocket connection
+    for {
+        _, message, err := c.ReadMessage()
+        if err != nil {
+            log.Fatalf("Failed to receive message: %s", err)
+        }
+        var msg struct {
+            Recipient string `json:"recipient"`
+            Message   string `json:"message"`
+        }
+        if err := json.Unmarshal(message, &msg); err != nil {
+            log.Fatalf("Failed to parse message: %s", err)
+        }
+        if msg.Recipient == "logger" {
+            log.Printf("Received message: %s", msg.Message)
+            // Log the message to a file
+            if err:= logToFile(msg.Message); err != nil {
+                log.Fatalf("Failed to log message: %s", err)
+            }
+        }
+    }
+}
