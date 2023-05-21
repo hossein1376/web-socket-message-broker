@@ -1,23 +1,16 @@
-package sender
+package main
 
 import (
 	"log"
-	"math/rand"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"socket/pkg"
 )
 
-var source = rand.New(rand.NewSource(time.Now().UnixNano()))
-
-type Socket struct {
-	conn *websocket.Conn
-	mu   sync.Mutex
-}
-
-func Sender() {
+func main() {
 	u := url.URL{
 		Scheme: "ws",
 		Host:   "localhost:3000",
@@ -26,27 +19,36 @@ func Sender() {
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatalf("sender failed: %s", err)
+		log.Fatal("sender dial:", err)
+		return
 	}
 	defer c.Close()
 
-	socket := &Socket{
-		conn: c,
+	client := &pkg.Client{
+		Conn: c,
+	}
+
+	msg := pkg.Message{
+		Target: pkg.Receiver,
+		Body:   nil,
 	}
 
 	for {
-		go worker(socket)
-		time.Sleep(time.Millisecond / 100)
+		go worker(client, msg)
+		//time.Sleep(time.Millisecond / 100)
+		time.Sleep(time.Second)
 	}
 }
 
-func worker(s *Socket) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func worker(c *pkg.Client, msg pkg.Message) {
+	c.Mutex.Lock()
+	defer c.Mutex.Unlock()
 
-	msg := randString(source.Int31n(8193))
+	msg.Body = randString(pkg.Source.Int31n(8193))
 
-	err := s.conn.WriteMessage(websocket.TextMessage, msg)
+	// TODO: parse it to json and then send it
+
+	err := c.Conn.WriteMessage(websocket.TextMessage, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,6 +56,6 @@ func worker(s *Socket) {
 
 func randString(n int32) []byte {
 	b := make([]byte, n+2)
-	source.Read(b)
+	pkg.Source.Read(b)
 	return b
 }
