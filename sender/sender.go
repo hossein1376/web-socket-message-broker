@@ -40,8 +40,8 @@ func Sender() {
 			log.Println("interrupt")
 			return
 		default:
-			//time.Sleep(time.Millisecond / 20)
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond / 20)
+			//time.Sleep(time.Second)
 		}
 	}
 }

@@ -26,7 +26,7 @@ func Receiver() {
 	u := url.URL{
 		Scheme: "ws",
 		Host:   "localhost:3001",
-		Path:   "/socket",
+		Path:   "/receiver",
 	}
 
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)

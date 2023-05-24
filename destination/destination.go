@@ -7,12 +7,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type Stat struct {
+	count int32
+	size  int
+}
+
 func Destination() {
 	u := url.URL{
 		Scheme: "ws",
 		Host:   "localhost:3001",
-		Path:   "/socket",
+		Path:   "/destination",
 	}
+
+	stat := Stat{}
 
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
@@ -25,6 +32,13 @@ func Destination() {
 		if err != nil {
 			log.Println("error reading from socket:", err)
 		}
-		log.Printf("destination: %s", msg)
+
+		stat.count++
+		stat.size += len(msg)
+
+		//log.Printf("destination: %s", msg)
+		if stat.count%10000 == 0 {
+			log.Printf("destination: %d messages, %d bytes", stat.count, stat.size)
+		}
 	}
 }
