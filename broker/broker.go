@@ -5,29 +5,31 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-
-	"socket/pkg"
 )
 
 var (
 	receiver    *websocket.Conn
 	destination *websocket.Conn
-	ch          = make(chan []byte)
+	upgrader    = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
 )
 
 func Broker() {
-	defer receiver.Close()
-	defer destination.Close()
-
 	http.HandleFunc("/receiver", receiverHandler)
 	http.HandleFunc("/destination", destinationHandler)
 
-	http.ListenAndServe(":3001", nil)
+	err := http.ListenAndServe(":3001", nil)
+	if err != nil {
+		log.Fatal("failed to start broker server:", err)
+		return
+	}
 }
 
 func receiverHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
-	receiver, err = pkg.Upgrader.Upgrade(w, r, nil)
+	receiver, err = upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("receiver upgrade:", err)
 		return
@@ -51,7 +53,7 @@ func receiverHandler(w http.ResponseWriter, r *http.Request) {
 
 func destinationHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
-	destination, err = pkg.Upgrader.Upgrade(w, r, nil)
+	destination, err = upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("upgrade error:", err)
 		return

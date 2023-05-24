@@ -19,7 +19,7 @@ func Receiver() {
 	go func() {
 		err := http.ListenAndServe(":3000", nil)
 		if err != nil {
-			log.Fatal("ListenAndServe: ", err)
+			log.Fatal("failed to start receiver server: ", err)
 		}
 	}()
 
