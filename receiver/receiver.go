@@ -1,33 +1,54 @@
-package main
+package receiver
 
 import (
+	"io"
 	"log"
 	"net/http"
+	"net/url"
 
-	"socket/pkg"
+	"github.com/gorilla/websocket"
 )
 
-func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		c, err := pkg.Upgrader.Upgrade(w, r, nil)
+var (
+	ch = make(chan []byte)
+)
+
+func Receiver() {
+	http.HandleFunc("/", apiHandler)
+
+	go func() {
+		err := http.ListenAndServe(":3000", nil)
 		if err != nil {
-			log.Print("receiver upgrade:", err)
-			return
+			log.Fatal("ListenAndServe: ", err)
 		}
+	}()
 
-		defer c.Close()
-		for {
-			_, msg, err := c.ReadMessage()
-			if err != nil {
-				log.Println("receiver:", err)
-				break
-			}
-			log.Printf("recvied: %s", msg)
-		}
-	})
-
-	err := http.ListenAndServe(":3000", nil)
-	if err != nil {
-		log.Fatal(err)
+	u := url.URL{
+		Scheme: "ws",
+		Host:   "localhost:3001",
+		Path:   "/socket",
 	}
+
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	if err != nil {
+		log.Fatalf("broker failed: %s", err)
+	}
+	defer conn.Close()
+
+	for {
+		err = conn.WriteMessage(websocket.TextMessage, <-ch)
+		if err != nil {
+			log.Println("error writing to socket:", err)
+		}
+	}
+}
+
+func apiHandler(w http.ResponseWriter, r *http.Request) {
+	msg, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ch <- msg
 }

@@ -10,16 +10,12 @@ import (
 
 type Target int8
 
-const (
-	Sender Target = iota
-	Receiver
-	Logger
-	Destination
-)
-
 var (
-	Upgrader = websocket.Upgrader{}
-	Source   = rand.New(rand.NewSource(time.Now().UnixNano()))
+	Upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+	Source = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 type Message struct {

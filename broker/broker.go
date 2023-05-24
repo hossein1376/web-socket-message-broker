@@ -3,65 +3,48 @@ package broker
 import (
 	"log"
 	"net/http"
-	"net/url"
-	"sync"
 
 	"github.com/gorilla/websocket"
+
+	"socket/pkg"
 )
 
-var upgrader = websocket.Upgrader{}
-
-type Socket struct {
-	conn *websocket.Conn
-	mu   sync.Mutex
-}
+var ch = make(chan []byte)
 
 func Broker() {
-	u := url.URL{
-		Scheme: "ws",
-		Host:   "localhost:3002",
-		Path:   "/",
-	}
+	http.HandleFunc("/socket", socketHandler)
 
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	http.ListenAndServe(":3001", nil)
+
+}
+
+func socketHandler(w http.ResponseWriter, r *http.Request) {
+	c, err := pkg.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Fatalf("broker failed: %s", err)
+		log.Print("receiver upgrade:", err)
+		return
 	}
-	defer conn.Close()
+	defer c.Close()
 
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		c, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Fatalf("broker upgrade failed: %s", err)
-		}
-		defer c.Close()
-
+	go func() {
 		for {
 			_, msg, err := c.ReadMessage()
 			if err != nil {
-				log.Fatal(err)
+				log.Println("error reading:", err)
+				return
 			}
 
-			socket := &Socket{
-				conn: c,
-			}
+			log.Print("logger: ", string(msg))
 
-			go worker(socket, msg)
+			ch <- msg
 		}
-	})
+	}()
 
-	err = http.ListenAndServe(":3001", nil)
-	if err != nil {
-		log.Fatal(err)
+	for {
+		err = c.WriteMessage(websocket.TextMessage, <-ch)
+		if err != nil {
+			log.Println("error writing to socket:", err)
+		}
 	}
-}
 
-func worker(s *Socket, msg []byte) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	err := s.conn.WriteMessage(websocket.TextMessage, msg)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
