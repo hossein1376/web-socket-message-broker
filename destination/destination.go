@@ -8,18 +8,16 @@ import (
 )
 
 type Stat struct {
-	count int32
-	size  int
+	Count int32
+	Size  int
 }
 
-func Destination() {
+func Destination(stat *Stat) {
 	u := url.URL{
 		Scheme: "ws",
 		Host:   "localhost:3001",
 		Path:   "/destination",
 	}
-
-	stat := Stat{}
 
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
@@ -33,12 +31,12 @@ func Destination() {
 			log.Println("error reading from socket:", err)
 		}
 
-		stat.count++
-		stat.size += len(msg)
+		stat.Count++
+		stat.Size += len(msg)
 
 		//log.Printf("destination: %s", msg)
-		if stat.count%10000 == 0 {
-			log.Printf("destination: %d messages, %d bytes", stat.count, stat.size)
-		}
+		//if stat.Count%10000 == 0 {
+		//	log.Printf("destination: %d messages, %d kilo-bytes, %d mega-bytes", stat.Count, stat.Size/1024, stat.Size/(1024*1024))
+		//}
 	}
 }
