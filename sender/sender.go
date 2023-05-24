@@ -1,54 +1,48 @@
 package sender
 
 import (
+	"bytes"
 	"log"
 	"math/rand"
-	"net/url"
-	"sync"
+	"net/http"
+	"os"
+	"os/signal"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 var source = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-type Socket struct {
-	conn *websocket.Conn
-	mu   sync.Mutex
-}
-
 func Sender() {
-	u := url.URL{
-		Scheme: "ws",
-		Host:   "localhost:3000",
-		Path:   "/",
-	}
-
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	if err != nil {
-		log.Fatalf("sender failed: %s", err)
-	}
-	defer c.Close()
-
-	socket := &Socket{
-		conn: c,
-	}
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+	defer close(interrupt)
 
 	for {
-		go worker(socket)
-		time.Sleep(time.Millisecond / 100)
-	}
-}
+		go func() {
+			msg := randString(5)
+			body := bytes.NewReader(msg)
 
-func worker(s *Socket) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+			req, err := http.NewRequest(http.MethodPost, "http://localhost:3000/", body)
+			if err != nil {
+				log.Fatalf("make http request: %v", err)
+				return
+			}
 
-	msg := randString(source.Int31n(8193))
+			_, err = http.DefaultClient.Do(req)
+			if err != nil {
+				log.Fatalf("send http request: %v", err)
+				return
+			}
+		}()
 
-	err := s.conn.WriteMessage(websocket.TextMessage, msg)
-	if err != nil {
-		log.Fatal(err)
+		select {
+		case <-interrupt:
+			log.Println("interrupt")
+			return
+		default:
+			time.Sleep(time.Millisecond / 20)
+			//time.Sleep(time.Second)
+		}
 	}
 }
 

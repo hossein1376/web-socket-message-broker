@@ -3,65 +3,57 @@ package broker
 import (
 	"log"
 	"net/http"
-	"net/url"
-	"sync"
 
 	"github.com/gorilla/websocket"
+
+	"socket/pkg"
 )
 
-var upgrader = websocket.Upgrader{}
-
-type Socket struct {
-	conn *websocket.Conn
-	mu   sync.Mutex
-}
+var (
+	receiver    *websocket.Conn
+	destination *websocket.Conn
+	ch          = make(chan []byte)
+)
 
 func Broker() {
-	u := url.URL{
-		Scheme: "ws",
-		Host:   "localhost:3002",
-		Path:   "/",
-	}
+	defer receiver.Close()
+	defer destination.Close()
 
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	http.HandleFunc("/receiver", receiverHandler)
+	http.HandleFunc("/destination", destinationHandler)
+
+	http.ListenAndServe(":3001", nil)
+}
+
+func receiverHandler(w http.ResponseWriter, r *http.Request) {
+	var err error
+	receiver, err = pkg.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Fatalf("broker failed: %s", err)
+		log.Print("receiver upgrade:", err)
+		return
 	}
-	defer conn.Close()
 
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		c, err := upgrader.Upgrade(w, r, nil)
+	for {
+		_, msg, err := receiver.ReadMessage()
 		if err != nil {
-			log.Fatalf("broker upgrade failed: %s", err)
+			log.Println("error reading:", err)
+			return
 		}
-		defer c.Close()
 
-		for {
-			_, msg, err := c.ReadMessage()
-			if err != nil {
-				log.Fatal(err)
-			}
+		//log.Print("logger: ", string(msg))
 
-			socket := &Socket{
-				conn: c,
-			}
-
-			go worker(socket, msg)
+		err = destination.WriteMessage(websocket.TextMessage, msg)
+		if err != nil {
+			log.Println("error writing to destination:", err)
 		}
-	})
-
-	err = http.ListenAndServe(":3001", nil)
-	if err != nil {
-		log.Fatal(err)
 	}
 }
 
-func worker(s *Socket, msg []byte) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	err := s.conn.WriteMessage(websocket.TextMessage, msg)
+func destinationHandler(w http.ResponseWriter, r *http.Request) {
+	var err error
+	destination, err = pkg.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("upgrade error:", err)
+		return
 	}
 }

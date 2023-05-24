@@ -3,20 +3,17 @@ package main
 import (
 	"time"
 
-	"graph/broker"
-	"graph/destination"
-	"graph/receiver"
-	"graph/sender"
+	"socket/broker"
+	"socket/destination"
+	"socket/receiver"
+	"socket/sender"
 )
 
 func main() {
-	go destination.Destination()
-	time.Sleep(time.Second)
 	go broker.Broker()
-	time.Sleep(time.Second)
 	go receiver.Receiver()
-	time.Sleep(time.Second)
+	go destination.Destination()
 	go sender.Sender()
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(time.Second * 100)
 }

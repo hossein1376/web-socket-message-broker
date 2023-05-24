@@ -1,41 +1,44 @@
 package destination
 
 import (
-	"fmt"
 	"log"
-	"net/http"
+	"net/url"
 
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
+type Stat struct {
+	count int32
+	size  int
+}
 
 func Destination() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		c, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Fatalf("destination failed: %s", err)
-		}
-		defer c.Close()
+	u := url.URL{
+		Scheme: "ws",
+		Host:   "localhost:3001",
+		Path:   "/destination",
+	}
 
-		var counter int32
+	stat := Stat{}
 
-		for {
-			_, msg, err := c.ReadMessage()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			counter++
-			if counter%30000 == 0 {
-				fmt.Printf("%s\n", msg)
-			}
-
-		}
-	})
-
-	err := http.ListenAndServe(":3002", nil)
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("broker failed: %s", err)
+	}
+	defer conn.Close()
+
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			log.Println("error reading from socket:", err)
+		}
+
+		stat.count++
+		stat.size += len(msg)
+
+		//log.Printf("destination: %s", msg)
+		if stat.count%10000 == 0 {
+			log.Printf("destination: %d messages, %d bytes", stat.count, stat.size)
+		}
 	}
 }
