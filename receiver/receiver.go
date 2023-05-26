@@ -36,9 +36,10 @@ func Receiver() {
 	defer conn.Close()
 
 	for {
+		// receiving messages from the apiHandler using a channel; and sending them to the broker
 		err = conn.WriteMessage(websocket.TextMessage, <-ch)
 		if err != nil {
-			log.Println("error writing to socket:", err)
+			log.Println("error writing to broker socket:", err)
 		}
 	}
 }
@@ -50,5 +51,6 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// sending the message on a channel, so it can be received on the other handler
 	ch <- msg
 }

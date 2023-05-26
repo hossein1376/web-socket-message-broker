@@ -5,25 +5,19 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
-	"os/signal"
 	"time"
 )
 
 var source = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
-	letterIdxBits = 6
-	letterIdxMask = 1<<letterIdxBits - 1
-	letterIdxMax  = 63 / letterIdxBits
+	bits = 6
+	mask = 1<<bits - 1
+	max  = 63 / bits
 )
 
 func Sender() {
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
-	defer close(interrupt)
-
 	for {
 		go func() {
 			msg := randString(source.Intn(7950) + 50)
@@ -42,28 +36,24 @@ func Sender() {
 			}
 		}()
 
-		select {
-		case <-interrupt:
-			log.Println("stop sending..")
-			return
-		default:
-			time.Sleep(time.Millisecond / 15)
-			//time.Sleep(time.Second)
-		}
+		// for 10000 messages per second, we need to send 1 each 1/10 ms
+		// here, we actually sleep 1/15 ms to compensate for the overhead of the sending
+		time.Sleep(time.Millisecond / 15)
 	}
 }
 
+// generate random string using bitmask for high performance
 func randString(n int) []byte {
 	b := make([]byte, n)
-	for i, cache, remain := n-1, rand.Int63(), letterIdxMax; i >= 0; {
+	for i, cache, remain := n-1, rand.Int63(), max; i >= 0; {
 		if remain == 0 {
-			cache, remain = rand.Int63(), letterIdxMax
+			cache, remain = rand.Int63(), max
 		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
+		if idx := int(cache & mask); idx < len(letters) {
+			b[i] = letters[idx]
 			i--
 		}
-		cache >>= letterIdxBits
+		cache >>= bits
 		remain--
 	}
 	return b
