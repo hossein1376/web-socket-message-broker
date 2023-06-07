@@ -1,4 +1,13 @@
-# Graph's Socket Test Project
+# Web Socket Message Broker
+
+## Description
+
+This is a test project that I did a while back for a job interview, but I liked the challenge and decided to share my
+code.
+
+The question was to write a program that sends 10,000 messages per second to a broker which in turn it will receive, log and send
+them to the destination. In there, the overall message count and size will be displayed.  
+Sender module should use standard HTTP protocol and the broker should use the WebSocket protocol.
 
 ## Dependencies
 
@@ -18,7 +27,7 @@ go run ./main.go
 
 ## Sender
 
-The `sender` module generates random messages between 50 bytes and 8 kilo-bytes, and send them to `receiver`'s HTTP
+The `sender` module generates random messages between 50 bytes and 8 kilobytes, and send them to `receiver`'s HTTP
 endpoint.  
 There is a tiny sleep delay to control the program to ~10k messages per seconds. It can be tweaked for higher or lower
 counts.
